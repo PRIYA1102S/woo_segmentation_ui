@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  ingest-service:
+    build:
+      context: ../services/ingest-service
+      dockerfile: Dockerfile
+    environment:
+      - WOOCOMMERCE_BASE_URL=${WOOCOMMERCE_BASE_URL}
+      - WOOCOMMERCE_CONSUMER_KEY=${WOOCOMMERCE_CONSUMER_KEY}
+      - WOOCOMMERCE_CONSUMER_SECRET=${WOOCOMMERCE_CONSUMER_SECRET}
+      - CRON_SCHEDULE=${CRON_SCHEDULE}
+      - INGEST_PORT=5001
+    ports:
+      - "${INGEST_PORT:-5001}:5001"
+    volumes:
+      - ../../data:/data
+    restart: unless-stopped
+
+  api-service:
+    build:
+      context: ../services/api-service
+      dockerfile: Dockerfile
+    environment:
+      - API_PORT=${API_PORT}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - ../../data:/data
+    depends_on:
+      - ingest-service
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_URL=http://api-service:4000
+      - PORT=${FRONTEND_PORT}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - api-service
+    restart: unless-stopped
+
+networks:
+  default:
+    driver: bridge
